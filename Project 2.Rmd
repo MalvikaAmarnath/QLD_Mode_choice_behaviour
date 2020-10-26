@@ -1,0 +1,1027 @@
+---
+title: "Project2"
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Analysing mode choice behaviour of South East Queensland from 2017 to 2019 using MNL model
+
+
+Reading in the datasets
+#HOUSEHOLDS
+```{r Reading in the households datasets}
+#Loading the datasets in its original form
+library(tidyverse)
+HOUSEHOLDS<-  read_csv("1_QTS_HOUSEHOLDS.csv")
+HOUSEHOLDS<-filter(HOUSEHOLDS, HOUSEHOLDS$STATUS == 'Accept')# filtering according to people who have accepted to participate in the survey
+```
+
+#PERSONS
+```{r Reading in the persons datasets}
+PERSONS<- read_csv("2_QTS_PERSONS.csv") #reading in the persons dataset which consists of personal characteristics
+```
+
+Merging households and persons
+```{r Merging households and persons}
+HOUSEHOLDS.PERSONS<- merge(HOUSEHOLDS, PERSONS, by="HHID") #merging both the datasets 
+```
+
+#Licence Holders/HH
+```{r Licence Holders}
+### Number of licence holders per household
+
+Licence_holders<- select(HOUSEHOLDS.PERSONS,"HHID","HHSIZE","HHVEH", "RELATIONSHIP","AGEGROUP", "CARLICENCE", "MBLICENCE", "OTHERLICENCE")
+Licence_holders<- filter(Licence_holders, Licence_holders$AGEGROUP >3)#above agegroup 3 in the dataset are from 14 years and older
+
+
+Licence_holders<- filter(Licence_holders, CARLICENCE == "TRUE" | MBLICENCE == "TRUE" | OTHERLICENCE == "TRUE")# filtered according to people who hold any type of vehicle license 
+
+#install.packages("plyr")
+library(plyr)
+CL_1<- ddply(Licence_holders, .(HHID), nrow)#this calculates the total number of licence holders in a household and puts it into a seperate column (V1) according to the household id (HHID)
+CL_1$N.LicenceHolders<-CL_1$V1#renaming V1 as N.LicenceHolders
+CL_1<-select(CL_1, "HHID","N.LicenceHolders")#selecting only HHID and N.LicenceHolders
+```
+
+##Number of WORKERS/HH
+
+```{r Number of WORKERS/HH}
+Workers<- select(HOUSEHOLDS.PERSONS, "HHID", "HHSIZE", "WORKSTATUS", "MAINACT")
+Workers<- filter(Workers, WORKSTATUS == "workFullTime" | WORKSTATUS == "volunteer" | WORKSTATUS == "workPartTime")#filtering according to people who do all types of work
+
+W.HH_1<-ddply(Workers, .(HHID), nrow)#this calculates the total number of workers in a household and puts it into a seperate column (V1) according to the household id (HHID)
+
+
+W.HH_1$N.Workers<-W.HH_1$V1#renaming V1 as N.Workers
+W.HH_1<- select(W.HH_1, "HHID","N.Workers")#selecting only HHID and N.Workers
+```
+
+
+##Number of Schoolstudents/HH
+
+```{r Number of Schoolstudents/HH}
+Students<- select(HOUSEHOLDS.PERSONS, "HHID", "HHSIZE", "STUDYING", "MAINACT")
+Students<- filter(Students, STUDYING == "primary" | STUDYING == "secondary")
+Stu.HH_1<-ddply(Students, .(HHID), nrow)
+
+Stu.HH_1$N.Students<-Stu.HH_1$V1
+Stu.HH_1<- select(Stu.HH_1,"HHID", "N.Students")
+```
+
+
+
+##Number of tertiary students/HH
+```{r Number of tertiary students/HH}
+TER.Students<- select(HOUSEHOLDS.PERSONS, "HHID", "HHSIZE", "STUDYING", "MAINACT")
+
+TER.Students<- filter(TER.Students, STUDYING == "tertiaryPartTime" | STUDYING == "tertiaryFullTime")
+TER.Stu.HH_1<-ddply(TER.Students, .(HHID), nrow)
+TER.Stu.HH_1$N.TerStudents<-TER.Stu.HH_1$V1
+TER.Stu.HH_1<- select(TER.Stu.HH_1,"HHID", "N.TerStudents")
+```
+
+
+
+##Calculating Number of ADULTS per household
+```{r Number of ADULTS per household}
+Adults<-select(HOUSEHOLDS.PERSONS,"HHID","HHSIZE","RELATIONSHIP","AGEGROUP")
+Adults<-filter(HOUSEHOLDS.PERSONS, HOUSEHOLDS.PERSONS$AGEGROUP > 4)
+
+Adults.HH_1<-ddply(Adults, .(HHID), nrow)
+Adults.HH_1$N.Adults<-Adults.HH_1$V1
+Adults.HH_1<-select(Adults.HH_1,"HHID", "N.Adults")
+```
+
+##Calculating the number of white collar workers per household
+```{r number of white collar workers per household}
+
+White_workers<- select(HOUSEHOLDS.PERSONS, "HHID", "HHSIZE", "ANZSCO_1-digit", "WORKSTATUS")
+White_workers<- filter(White_workers, `ANZSCO_1-digit` == 1 | `ANZSCO_1-digit` == 2 | `ANZSCO_1-digit` == 4 | `ANZSCO_1-digit` == 5 | `ANZSCO_1-digit` == 6)
+unique(White_workers$`ANZSCO_1-digit`)
+
+White.HH_1<-ddply(White_workers, .(HHID), nrow)
+
+
+White.HH_1$N.WhiteWorkers<-White.HH_1$V1
+White.HH_1<- select(White.HH_1, "HHID","N.WhiteWorkers")
+```
+
+
+##Calculating the number of blue collar workers per household
+```{r number of blue collar workers per household}
+Blue_workers<- select(HOUSEHOLDS.PERSONS, "HHID", "HHSIZE", "ANZSCO_1-digit", "WORKSTATUS")
+Blue_workers<- filter(Blue_workers, `ANZSCO_1-digit` == 3 | `ANZSCO_1-digit` == 7 | `ANZSCO_1-digit` == 8)
+unique(Blue_workers$`ANZSCO_1-digit`)
+
+Blue.HH_1<-ddply(Blue_workers, .(HHID), nrow)
+
+
+Blue.HH_1$N.BlueWorkers<-Blue.HH_1$V1
+Blue.HH_1<- select(Blue.HH_1, "HHID","N.BlueWorkers")
+```
+
+#Data processing for home-based trips
+```{r Data processing for home-based trips}
+Travel<-read_csv("5_QTS_TRIPS.csv")
+Travel_var<- select(Travel,"TRIPID","HHID","PERSID", "ORIGPLACE","ORIGPURP","DESTPLACE", "MAINMODE","TRAVTIME", "OVERALL_PURPOSE")
+Persons.travCheck<- select(PERSONS,"PERSID", "RELATIONSHIP")
+Persons.travCheck<- filter(Persons.travCheck, Persons.travCheck$RELATIONSHIP == "relative" | Persons.travCheck$RELATIONSHIP == "nonFamily" | Persons.travCheck$RELATIONSHIP == "other") 
+
+
+TRIP.PERSONS<- join(Travel_var, Persons.travCheck, type="left")
+
+#install.packages("naniar")
+library(naniar)
+TRIP.PERSONS$RELATIONSHIP[is.na(TRIP.PERSONS$RELATIONSHIP)] <- "Family"
+
+
+TRIP.PERSONS<- filter(TRIP.PERSONS, TRIP.PERSONS$RELATIONSHIP != "relative" & TRIP.PERSONS$RELATIONSHIP != "nonFamily" & TRIP.PERSONS$RELATIONSHIP != "other")  #filtered according to non-family members
+HB.TRIP.PERSONS<- filter(TRIP.PERSONS, ORIGPLACE == "My home") #filtered according to origin place as home
+HB.TRIP.PERSONS<- select(HB.TRIP.PERSONS, -5)
+unique(Travel_var$ORIGPURP)
+unique(TRIP.PERSONS$RELATIONSHIP)
+```
+
+#Final dataset for 2017-2018 and 2019
+```{r Final dataset for 2017-2018 and 2019}
+#merging all the datasets into one final dataset
+final_dataset<- select(HOUSEHOLDS.PERSONS, "HHID", "PERSID","HHSIZE", "STATUS","HHVEH","ANZSCO_1-digit", "STUDYING", "TRAVYEAR")
+final_dataset<- join(HB.TRIP.PERSONS,final_dataset, type="left")
+final_dataset$STATUS[is.na(final_dataset$STATUS)] <- "Reject"
+final_dataset<- filter(final_dataset, final_dataset$STATUS == "Accept")
+final_dataset<- join(final_dataset, Adults.HH_1, type="left")
+final_dataset<- join(final_dataset, CL_1, type="left")
+final_dataset<- join(final_dataset, W.HH_1, type="left")
+final_dataset<- join(final_dataset, Stu.HH_1, type="left")
+final_dataset<- join(final_dataset, TER.Stu.HH_1, type="left")
+final_dataset<- join(final_dataset, White.HH_1, type="left")
+final_dataset<- join(final_dataset, Blue.HH_1, type="left")
+
+unique(HOUSEHOLDS.PERSONS$STRATA_LGA)
+#mapping na values to 0
+final_dataset$N.Adults[is.na(final_dataset$N.Adults)]<- 0
+final_dataset$N.LicenceHolders[is.na(final_dataset$N.LicenceHolders)]<- 0
+final_dataset$N.Workers[is.na(final_dataset$N.Workers)]<- 0
+final_dataset$N.Students[is.na(final_dataset$N.Students)]<- 0
+final_dataset$N.TerStudents[is.na(final_dataset$N.TerStudents)]<- 0
+final_dataset$N.WhiteWorkers[is.na(final_dataset$N.WhiteWorkers)]<- 0
+final_dataset$N.BlueWorkers[is.na(final_dataset$N.BlueWorkers)]<- 0
+view(HOUSEHOLDS.PERSONS)
+#clubbing 16 different modes into 7
+final_dataset$MAINMODE[final_dataset$MAINMODE=="Car driver"]<- 'Car'
+final_dataset$MAINMODE[final_dataset$MAINMODE=="Car passenger"]<- 'Car'
+final_dataset$MAINMODE[final_dataset$MAINMODE=="Motorcycle driver"]<- 'Motorcycle'
+final_dataset$MAINMODE[final_dataset$MAINMODE=="Motorcycle passenger"]<- 'Motorcycle'
+final_dataset$MAINMODE[final_dataset$MAINMODE=="Mobility scooter"]<- 'Motorcycle'
+final_dataset$MAINMODE[final_dataset$MAINMODE=="Taxi or ride share e.g. Uber"]<- 'Taxi'
+final_dataset$MAINMODE[final_dataset$MAINMODE=="Uber / Other Ride Share"]<- 'Taxi'
+final_dataset$MAINMODE[final_dataset$MAINMODE=="Taxi"]<- 'Taxi'
+final_dataset$MAINMODE[final_dataset$MAINMODE=="Taxi or Uber"]<- 'Taxi'
+final_dataset$MAINMODE[final_dataset$MAINMODE=="Charter/Courtesy/Other bus"]<- 'Other bus'
+final_dataset$MAINMODE[final_dataset$MAINMODE=="School bus (private/chartered)"]<- 'Other bus'
+final_dataset$MAINMODE[final_dataset$MAINMODE=="School bus (with route number)"]<- 'Other bus'
+final_dataset$MAINMODE[final_dataset$MAINMODE=="Other method"]<- 'Other bus'
+final_dataset$MAINMODE[final_dataset$MAINMODE=="Public bus"]<- 'Public transport'
+final_dataset$MAINMODE[final_dataset$MAINMODE=="Public Bus"]<- 'Public transport'
+final_dataset$MAINMODE[final_dataset$MAINMODE=="Train"]<- 'Public transport'
+final_dataset$MAINMODE[final_dataset$MAINMODE=="Ferry"]<- 'Public transport'
+final_dataset$MAINMODE[final_dataset$MAINMODE=="Light rail"]<- 'Public transport'
+final_dataset$MAINMODE[final_dataset$MAINMODE=="Truck driver"]<- 'Truck'
+final_dataset$MAINMODE[final_dataset$MAINMODE=="Truck passenger"]<- 'Truck'
+final_dataset$MAINMODE[final_dataset$MAINMODE=="Bicycle"]<- 'Active transport'
+final_dataset$MAINMODE[final_dataset$MAINMODE=="Walking"]<- 'Active transport'
+
+unique(final_dataset$MAINMODE)
+#view(final_dataset_2019)
+#dividing the dataset into 2017-2018 and 2019
+final_dataset.17.18<- filter( final_dataset, final_dataset$TRAVYEAR != "2019")
+final_dataset_2019<- filter( final_dataset, final_dataset$TRAVYEAR == "2019")
+```
+
+##HOME-BASED WORK WHITE COLLAR TRIPS (HBW-W) (2017-2018)
+
+```{r HBW-W}
+HBW_W<- filter(final_dataset.17.18, `ANZSCO_1-digit` == 1 | `ANZSCO_1-digit` == 2 | `ANZSCO_1-digit` == 4 | `ANZSCO_1-digit` == 5 | `ANZSCO_1-digit` == 6) #filtering according to white collar jobs
+
+HBW_W<- filter(HBW_W, OVERALL_PURPOSE == "Direct Work Commute" | OVERALL_PURPOSE == "Work Related")#filtering where overall trip purpose is for work
+
+
+unique(HBW_W$MAINMODE)
+```
+
+Splitting and training the dataset (HBW-W)
+```{r Splitting and training the dataset (HBW-W)}
+library(caTools)
+
+
+#splitting into train (75%) and test (25%)
+smp_size <- floor(0.75 * nrow(HBW_W))
+set.seed(123)
+train_ind <- sample(seq_len(nrow(HBW_W)), size = smp_size)
+
+train.1718 <- HBW_W[train_ind, ]
+test.1718 <- HBW_W[-train_ind, ]
+
+```
+Reshaping the data for train set(HBW-W)
+```{r Reshaping the data for train set(HBW-W)}
+HBW_W.1718.train <- select(train.1718, 6,7,10,12,16:22)#filtering according to selected variables from train set
+library(mlogit)
+HBW_W.1718.train<- mlogit.data(HBW_W.1718.train  , choice = "MAINMODE", shape = "wide")
+
+```
+
+Fitting the model using the mlogit package for train set(HBW-W) 2017-2018
+```{r Fitting the model using the mlogit package for train set(HBW-W) 2017-2018}
+HBW_W.1718.mode<- mlogit(MAINMODE~ 1 | HHSIZE+HHVEH+TRAVTIME+N.Adults+N.LicenceHolders+N.Students+N.TerStudents+N.Workers+N.WhiteWorkers+N.BlueWorkers, data = HBW_W.1718.train, reflevel = "Car", method = "bfgs")
+summary(HBW_W.1718.mode)
+```
+
+
+
+Reshaping the data for test set(HBW-W) 2017-2018
+```{r Reshaping the data for test set(HBW-W) 2017-2018}
+HBW_W.1718.test <- select(test.1718, 6,7,10,12,16:22)
+library(mlogit)
+HBW_W.1718.test<- mlogit.data(HBW_W.1718.test  , choice = "MAINMODE", shape = "wide")
+```
+
+Fitting the model using the mlogit package for test set(HBW-W)
+```{r Fitting the model using the mlogit package for test set(HBW-W)}
+HBW_W.1718.model.t<- mlogit(MAINMODE~ 1 | HHSIZE+HHVEH+TRAVTIME+N.Adults+N.LicenceHolders+N.Students+N.TerStudents+N.Workers+N.WhiteWorkers+N.BlueWorkers, data = HBW_W.1718.test, reflevel = "Car", method = "bfgs")
+summary(HBW_W.1718.model.t)
+```
+
+##2019 HBW_W model
+
+
+##HOME-BASED WORK WHITE COLLAR TRIPS (2019)
+
+```{r HOME-BASED WORK WHITE COLLAR TRIPS 2019}
+HBW_W.2019<- filter(final_dataset_2019, `ANZSCO_1-digit` == 1 | `ANZSCO_1-digit` == 2 | `ANZSCO_1-digit` == 4 | `ANZSCO_1-digit` == 5 | `ANZSCO_1-digit` == 6) #filtering according to white collar jobs
+
+HBW_W.2019<- filter(HBW_W.2019, OVERALL_PURPOSE == "Direct Work Commute" | OVERALL_PURPOSE == "Work Related")#filtering where overall trip purpose is for work
+
+unique(HBW_W.2019$MAINMODE)
+```
+
+
+Reshaping the data (HBW-W) 2019
+```{r Reshaping the data for train set(HBW-W) 2019}
+HBW_W.2019 <- select(HBW_W.2019, 6,7,10,12,16:22)
+library(mlogit)
+HBW_W.2019.rs<- mlogit.data(HBW_W.2019  , choice = "MAINMODE", shape = "wide")
+view(HBW_W.2019.rs)
+```
+
+Fitting the model using the mlogit package (HBW-W) 2019
+```{r Fitting the model using the mlogit package for train set(HBW-W) 2019}
+HBW_W.2019.model<- mlogit(MAINMODE~ 1 | HHSIZE+HHVEH+TRAVTIME+N.Adults+N.LicenceHolders+N.Students+N.TerStudents+N.Workers+N.WhiteWorkers+N.BlueWorkers, data = HBW_W.2019.rs, reflevel = "Car", method = "bfgs")
+summary(HBW_W.2019.model)
+unique(final_dataset_2019$MAINMODE)
+
+```
+##Prediction  for HBW_W for 2019
+```{r Prediction  for train set HBW_W for 2019}
+a<-predict(HBW_W.1718.mode, newdata=HBW_W.2019.rs, returnData = FALSE)
+a<-data.frame(a) #putting the predicted values of 2019 into a data frame
+
+
+#calculating the predicted mode share values of each mode
+b.car<- select(a, 1)
+
+c.car<-sum(b.car, 1)
+c.car<-c.car/1527
+
+b.ActiveTransport<- select(a, 2)
+c.Activetransport<-sum(b.ActiveTransport, 1)
+c.Activetransport<-c.Activetransport/1527
+
+b.Motorcycle<- select(a, 3)
+c.Motorcycle<-sum(b.Motorcycle, 1)
+c.Motorcycle<-c.Motorcycle/1527
+
+b.OtheBus<- select(a, 4)
+c.OtheBus<-sum(b.OtheBus, 1)
+c.OtheBus<-c.OtheBus/1527
+
+b.PT<- select(a, 5)
+c.PT<-sum(b.PT, 1)
+c.PT<-c.PT/1527
+
+b.Taxi<- select(a, 6)
+c.Taxi<-sum(b.Taxi, 1)
+c.Taxi<-c.Taxi/1527
+
+b.Truck<- select(a, 7)
+c.Truck<-sum(b.Truck, 1)
+c.Truck<-c.Truck/1527
+
+c.car
+c.Activetransport
+c.Motorcycle
+c.OtheBus
+c.PT
+c.Taxi
+c.Truck
+```
+
+##BAR PLOTS FOR OBSERVED AND PREDICTED VALUES HBW-W 2019
+
+```{r BAR PLOTS HBW-W 2019}
+
+#creating a data frame for observed and predicted modeshare values of 2019 in order to visualise
+ValuesW<- c(0.8395547, 0.8254424, 0.0268500, 0.02355982, 0.0111329, 0.01337854, 0.0026195, 0.003285477, 0.1119843, 0.1246096, 0.0045842, 0.006039833, 0.0032744, 0.008268436)
+
+
+
+tagsW<- c('Observed','Predicted', 'Observed','Predicted', 'Observed','Predicted', 'Observed','Predicted', 'Observed','Predicted', 'Observed','Predicted','Predicted', 'Observed')
+
+modesW<- c("Car", "Car","Active transport","Active transport", "Motorcycle","Motorcycle", "Other bus","Other bus","Public transport", "Public transport", "Taxi", "Taxi", "Truck", "Truck")
+
+barHBW<- data.frame(ValuesW, tagsW, modesW)
+
+
+plot.HBW<- ggplot(barHBW,aes(x =modesW, y = ValuesW, fill= tagsW)) + 
+  geom_bar(stat = "identity",color = "Black", position = "dodge")+
+  theme_classic()+
+  scale_y_continuous(labels = scales::percent)+
+  labs(x = "Modes", fill="Observed/Predicted", y = "Mode share %")
+  #ggtitle("Comparison of obsereved and predicted values of mode share of 2019 for HBW-W")
+
+plot.HBW
+```
+
+
+
+
+######################################**************************************##########################################
+
+
+##HOME-BASED WORK BLUE COLLAR TRIPS (HBW-B)
+
+```{r (HBW-B)}
+HBW_B<- filter(final_dataset.17.18, `ANZSCO_1-digit` == 3 | `ANZSCO_1-digit` == 7 | `ANZSCO_1-digit` == 8)
+
+HBW_B<- filter(HBW_B, OVERALL_PURPOSE == "Direct Work Commute" | OVERALL_PURPOSE == "Work Related")
+#view(HBW_B)
+```
+
+Splitting and training the dataset (HBW-B)
+```{r Splitting and training the dataset (HBW-B)}
+library(caTools)
+#set.seed(101) 
+#HBW_W.1718 <- sample.split(HBW_W$MAINMODE, SplitRatio = .75)
+
+
+#trial
+smp_size.2 <- floor(0.75 * nrow(HBW_B))
+set.seed(123)
+train_ind.2 <- sample(seq_len(nrow(HBW_B)), size = smp_size.2)
+
+train.1718.HBW_B <- HBW_B[train_ind.2, ]
+test.1718.HBW_B <- HBW_B[-train_ind.2, ]
+
+```
+
+Reshaping the data for train set  (HBW_B)
+```{r Reshaping the data for train set  (HBW_B)}
+HBW_B.1718.train <- select(train.1718.HBW_B, 6,7,10,12,16:22)
+HBW_B.1718.train<- mlogit.data(HBW_B.1718.train  , choice = "MAINMODE", shape = "wide")
+unique(HBW_B.1718.train$N.Students)
+
+view(HBW_B.1718.train)
+```
+
+Fitting the model using the mlogit package for train set (HBW_B)
+```{r Fitting the model using the mlogit package for train set (HBW_B)}
+HBW_B.1718.mode<- mlogit(MAINMODE~ 1 | HHSIZE+HHVEH+TRAVTIME+N.Adults+N.LicenceHolders+N.Students+N.WhiteWorkers, data = HBW_B.1718.train, reflevel = "Car")
+summary(HBW_B.1718.mode)
+```
+
+Reshaping the data for test set  (HBW_B)
+```{r Reshaping the data for test set  (HBW_B)}
+HBW_B.1718.test <- select(test.1718.HBW_B, 6,7,10,12,16:22)
+HBW_B.1718.test<- mlogit.data(HBW_B.1718.test  , choice = "MAINMODE", shape = "wide")
+#view(HBW_B.1718.train)
+```
+
+Fitting the model for test set (HBW_B)
+```{r Fitting the model for test set (HBW_B)}
+HBW_B.1718.model.test<- mlogit(MAINMODE~ 1 | HHSIZE+HHVEH+TRAVTIME+N.Adults+N.LicenceHolders+N.Students+N.TerStudents+N.Workers+N.WhiteWorkers+N.BlueWorkers, data = HBW_B.1718.test, reflevel = "Car")
+summary(HBW_B.1718.model.test)
+```
+
+##2019 HBW_B model
+```{r 2019 HBW_B model}
+HBW_B.2019<- filter(final_dataset_2019, `ANZSCO_1-digit` == 3 | `ANZSCO_1-digit` == 7 | `ANZSCO_1-digit` == 8)
+
+HBW_B.2019<- filter(HBW_B.2019, OVERALL_PURPOSE == "Direct Work Commute" | OVERALL_PURPOSE == "Work Related")
+
+#view(HBW_B.2019)
+```
+
+Reshaping the data (HBW-B) 2019
+```{r Reshaping the data (HBW-B) 2019}
+HBW_B.2019.t <- select(HBW_B.2019, 6,7,10,12,16:22)
+library(mlogit)
+HBW_B.2019.t<- mlogit.data(HBW_B.2019.t  , choice = "MAINMODE", shape = "wide")
+#view(HBW_B.2019.t)
+
+```
+
+Fitting the model using the mlogit package (HBW-B) 2019
+```{r Fitting the model using the mlogit package (HBW-B) 2019}
+HBW_B.2019.model<- mlogit(MAINMODE ~ 1| HHSIZE+HHVEH+TRAVTIME+N.Adults+N.LicenceHolders+N.TerStudents+N.WhiteWorkers, data = HBW_B.2019.t, reflevel = "Car")
+#(+HHVEH+TRAVTIME+N.Adults+N.LicenceHolders+N.Students+N.TerStudents+N.Workers+N.WhiteWorkers+N.BlueWorkers, data = HBW_B.2019.t, reflevel = "Car")
+summary(HBW_B.2019.model)
+#unique(final_dataset_2019$MAINMODE)
+
+```
+
+##Prediction for HBW_B 2019
+
+```{r Prediction for HBW_B 2019}
+HBW_B.predict2019<-predict(HBW_B.1718.mode, newdata=HBW_B.2019.t, returnData = FALSE)
+#HBW_B.predict2019
+
+HBW_B.predict2019<-data.frame(HBW_B.predict2019)
+HBW_B.b.car<- select(HBW_B.predict2019, 1)
+
+HBW_B.car<-sum(HBW_B.b.car, 1)
+HBW_B.car<-HBW_B.car/667
+
+HBW_B.b.ActiveTransport<- select(HBW_B.predict2019, 2)
+HBW_B.Activetransport<-sum(HBW_B.b.ActiveTransport, 1)
+HBW_B.Activetransport<-HBW_B.Activetransport/667
+
+HBW_B.b.Motorcycle<- select(HBW_B.predict2019, 3)
+HBW_B.Motorcycle<-sum(HBW_B.b.Motorcycle, 1)
+HBW_B.Motorcycle<-HBW_B.Motorcycle/667
+
+HBW_B.b.OtherBus<- select(HBW_B.predict2019, 4)
+HBW_B.OtherBus<-sum(HBW_B.b.OtherBus, 1)
+HBW_B.OtherBus<-HBW_B.OtherBus/667
+
+HBW_B.b.PT<- select(HBW_B.predict2019, 5)
+HBW_B.PT<-sum(HBW_B.b.PT, 1)
+HBW_B.PT<-HBW_B.PT/667
+
+HBW_B.b.Taxi<- select(HBW_B.predict2019, 6)
+HBW_B.Taxi<-sum(HBW_B.b.Taxi, 1)
+HBW_B.Taxi<-HBW_B.Taxi/667
+
+HBW_B.b.Truck<- select(HBW_B.predict2019, 7)
+HBW_B.Truck<-sum(HBW_B.b.Truck, 1)
+HBW_B.Truck<-HBW_B.Truck/667
+
+
+HBW_B.car
+HBW_B.Activetransport
+HBW_B.Motorcycle
+HBW_B.OtherBus
+HBW_B.PT
+HBW_B.Taxi
+HBW_B.Truck
+```
+
+##BAR PLOTS FOR OBSERVED AND PREDICTED VALUES HBW-B 2019
+
+```{r BAR PLOTS HBW-B 2019}
+#creating a data frame for observed and predicted modeshare values of 2019 in order to visualise
+ValuesB<- c(0.8800600, 0.8819635, 0.0164918, 0.01021965, 0.0179910, 0.01326935, 0.0029985, 0.004749696, 0.0299850, 0.02911151, 0.0014993, 0.004868121, 0.0509745, 0.06631291)
+
+
+tagsB<- c('Observed','Predicted', 'Observed','Predicted', 'Observed','Predicted', 'Observed','Predicted', 'Observed','Predicted', 'Observed','Predicted','Predicted', 'Observed')
+
+modesB<- c("Car", "Car","Active transport","Active transport", "Motorcycle","Motorcycle", "Other bus","Other bus","Public transport", "Public transport", "Taxi", "Taxi", "Truck", "Truck")
+
+barHBB<- data.frame(ValuesB, tagsB, modesB)
+
+
+plot.HBB<- ggplot(barHBB,aes(x =modesB, y = ValuesB, fill= tagsB)) + 
+  geom_bar(stat = "identity", color = "Black",position = "dodge")+
+  theme_classic()+
+  scale_y_continuous(labels = scales::percent)+
+  labs(x = "Modes", fill="Observed/Predicted", y = "Mode share %")
+  
+
+plot.HBB
+```
+
+
+
+
+##################################******************************************#######################################
+
+
+##HOME BASED EDUCATION TRIPS (HBE) 2017-2018
+
+```{r (HBE) 2017-2018}
+HBE<- filter(final_dataset.17.18, OVERALL_PURPOSE == "Education") 
+unique(HBE$MAINMODE)
+HBE<- filter(HBE, MAINMODE != "Truck")
+```
+
+Splitting and training the dataset (HBE) 2017-2018
+```{r Splitting and training the dataset (HBE) 2017-2018}
+library(caTools)
+#set.seed(101) 
+#HBW_W.1718 <- sample.split(HBW_W$MAINMODE, SplitRatio = .75)
+
+
+#trial
+smp_size <- floor(0.75 * nrow(HBE))
+set.seed(123)
+train_ind.HBE <- sample(seq_len(nrow(HBE)), size = smp_size)
+
+train.1718.HBE <- HBE[train_ind.HBE, ]
+test.1718.HBE <- HBE[-train_ind.HBE, ]
+
+
+#HBW_W.1718.train <- subset(HBW_W, HBW_W.1718 == TRUE)
+#HBW_W.1718.test  <- subset(HBW_W, HBW_W.1718 == FALSE)
+```
+Reshaping the data for train set (HBE) 2017-2018
+
+```{r Reshaping the data for train set (HBE) 2017-2018}
+HBE.1718.train <- select(train.1718.HBE, 6,7,10,12,16:22)
+library(mlogit)
+HBE.1718.train<- mlogit.data(HBE.1718.train  , choice = "MAINMODE", shape = "wide")
+#view(HBE.1718.train)
+```
+
+Fitting the model using the mlogit package for train set (HBE) 2017-2018
+```{r Fitting the model using the mlogit package for train set (HBE) 2017-2018}
+HBE.1718.model<- mlogit(MAINMODE~ 1 | HHSIZE+HHVEH+TRAVTIME+N.Adults+N.LicenceHolders+N.Students, data = HBE.1718.train, reflevel = "Car", method = "bfgs")
+summary(HBE.1718.model)
+```
+
+Reshaping the data for test set (HBE) 2017-2018
+```{r Reshaping the data for test set (HBE) 2017-2018}
+HBE.1718.test <- select(test.1718.HBE, 6,7,10,12,16:22)
+library(mlogit)
+HBE.1718.test<- mlogit.data(HBE.1718.test  , choice = "MAINMODE", shape = "wide")
+```
+
+Fitting the model using the mlogit package for test set (HBE-PS) 2017-2018
+```{r Fitting the model using the mlogit package for test set (HBE-PS) 2017-2018}
+HBE.1718.model.test<- mlogit(MAINMODE~ 1 | HHSIZE+HHVEH+TRAVTIME+N.Adults+N.LicenceHolders+N.Students, data = HBE.1718.test, reflevel = "Car", method = "bfgs")
+summary(HBE.1718.model.test)
+```
+
+##HOME BASED EDUCATION TRIPS (HBE) 2019
+
+```{r HOME BASED EDUCATION TRIPS (HBE) 2019}
+HBE.2019<- filter(final_dataset_2019, OVERALL_PURPOSE == "Education") 
+unique(HBE.2019$MAINMODE)
+```
+
+
+Reshaping the data (HBE) 2019
+```{r Reshaping the data (HBE) 2019}
+HBE.2019 <- select(HBE.2019, 6,7,10,12,16:22)
+library(mlogit)
+HBE.2019.rs<- mlogit.data(HBE.2019  , choice = "MAINMODE", shape = "wide")
+#view(HBE.2019.rs)
+```
+
+Fitting the model using the mlogit package (HBE) 2019
+```{r Fitting the model using the mlogit package (HBE) 2019}
+HBE.2019.model<- mlogit(MAINMODE~ 1 | HHSIZE+HHVEH+TRAVTIME+N.Adults+N.LicenceHolders+N.Workers, data = HBE.2019.rs, reflevel = "Car", method = "bfgs")
+
+summary(HBE.2019.model)
+
+```
+
+```{r}
+apply(fitted(HBE.2019.model, outcome=FALSE), 2, mean)
+
+```
+
+
+
+
+#Prediction for HBE 2019
+
+```{r Prediction for HBE 2019}
+HBE.predict2019<-predict(HBE.1718.model, newdata=HBE.2019.rs, returnData = FALSE)
+
+
+HBE.predict2019<-data.frame(HBE.predict2019)
+HBE.b.car<- select(HBE.predict2019, 1)
+
+HBE.car<-sum(HBE.b.car, 1)
+HBE.car<-HBE.car/1229
+
+HBE.b.ActiveTransport<- select(HBE.predict2019, 2)
+HBE.Activetransport<-sum(HBE.b.ActiveTransport, 1)
+HBE.Activetransport<-HBE.Activetransport/1229
+
+HBE.b.Motorcycle<- select(HBE.predict2019, 3)
+HBE.Motorcycle<-sum(HBE.b.Motorcycle, 1)
+HBE.Motorcycle<-HBE.Motorcycle/1229
+
+HBE.b.OtherBus<- select(HBE.predict2019, 4)
+HBE.OtherBus<-sum(HBE.b.OtherBus, 1)
+HBE.OtherBus<-HBE.OtherBus/1229
+
+HBE.b.PT<- select(HBE.predict2019, 5)
+HBE.PT<-sum(HBE.b.PT, 1)
+HBE.PT<-HBE.PT/1229
+
+HBE.b.Taxi<- select(HBE.predict2019, 6)
+HBE.Taxi<-sum(HBE.b.Taxi, 1)
+HBE.Taxi<-HBE.Taxi/1229
+
+
+
+
+HBE.car
+HBE.Activetransport
+HBE.Motorcycle
+HBE.OtherBus
+HBE.PT
+HBE.Taxi
+
+```
+
+
+##BAR PLOTS FOR OBSERVED AND PREDICTED VALUES HBE 2019
+
+```{r #BAR PLOTS HBE 2019}
+#creating a data frame for observed and predicted modeshare values of 2019 in order to visualise
+ValuesE<- c(0.70056957, 0.7358622, 0.14727421, 0.1178452, 0.00081367, 0.002355793, 0.07892596, 0.07478491, 0.07078926, 0.072099553, 0.00162734, 0.001934332)
+
+tagsE<- c('Observed','Predicted', 'Observed','Predicted', 'Observed','Predicted', 'Observed','Predicted', 'Observed','Predicted', 'Observed','Predicted')
+
+modesE<- c("Car", "Car","Active transport","Active transport", "Motorcycle","Motorcycle", "Other bus","Other bus","Public transport", "Public transport", "Taxi", "Taxi")
+
+barHBE<- data.frame(ValuesE, tagsE, modesE)
+
+
+plot.HBE<- ggplot(barHBE,aes(x =modesE, y = ValuesE, fill= tagsE)) + 
+  geom_bar(stat = "identity",color = "Black", position = "dodge")+
+  theme_classic()+
+  scale_y_continuous(labels = scales::percent)+
+  labs(x = "Modes", fill="Observed/Predicted", y = "Mode share %")
+  #ggtitle("Comparison of obsereved and predicted values of mode share of 2019 for HBE")
+
+plot.HBE
+```
+
+
+
+
+##############################**********************************######################################################
+
+
+
+
+
+
+##HOME BASED SHOPPING TRIPS (HBS)
+
+```{r HOME BASED SHOPPING TRIPS (HBS)}
+HBS<- filter(final_dataset.17.18, OVERALL_PURPOSE == "Shopping") #filtering the dataset where the purpose of trip is shopping
+
+HBS<- filter(HBS, MAINMODE != "Other bus") #The HBS 2019 dataset doesnt contain Other bus in the main mode and since this data is used to train and test and HBS 2019 data will be applied to this model, it becomes necessary to get rid of Other bus from mainmode
+unique(HBS$MAINMODE)
+```
+
+
+Splitting and training the dataset (HBS)
+```{r Splitting and training the dataset (HBS)}
+#splitting the dataset into train(75%) and test set(25%)
+library(caTools)
+
+
+smp_size <- floor(0.75 * nrow(HBS))
+set.seed(123)
+train_ind.HBS <- sample(seq_len(nrow(HBS)), size = smp_size)
+
+train.1718.HBS <- HBS[train_ind.HBS, ]
+test.1718.HBS <- HBS[-train_ind.HBS, ]
+
+```
+
+Reshaping the data for train set (HBS)
+```{r Reshaping the data for train set (HBS)}
+HBS.1718.train <- select(train.1718.HBS, 6,7,10,12,16:22)
+library(mlogit)
+HBS.1718.train<- mlogit.data(HBS.1718.train  , choice = "MAINMODE", shape = "wide")
+#view(HBS.1718.train)
+```
+
+
+Fitting the model using the mlogit package for train set (HBS)
+```{r Fitting the model using the mlogit package for train set (HBS)}
+HBS.1718.model<- mlogit(MAINMODE~ 1 | HHSIZE+HHVEH+TRAVTIME+N.Adults+N.LicenceHolders+N.Students+N.TerStudents+N.Workers+N.WhiteWorkers+N.BlueWorkers, data = HBS.1718.train, reflevel = "Car", method = "bfgs")
+summary(HBS.1718.model)
+```
+
+Reshaping the data for test set (HBS)
+```{r Reshaping the data for test set (HBS)}
+HBS.1718.test <- select(test.1718.HBS, 6,7,10,12,16:22)
+library(mlogit)
+HBS.1718.test<- mlogit.data(HBS.1718.test  , choice = "MAINMODE", shape = "wide")
+#view(HBS.1718.test)
+```
+
+
+Fitting the model using the mlogit package for test set (HBS)
+```{r Fitting the model using the mlogit package for test set (HBS)}
+HBS.1718.model.test<- mlogit(MAINMODE~ 1 | HHSIZE+HHVEH+TRAVTIME+N.Adults+N.LicenceHolders+N.Students+N.TerStudents+N.Workers+N.WhiteWorkers+N.BlueWorkers, data = HBS.1718.test, reflevel = "Car", method = "bfgs")
+summary(HBS.1718.model.test)
+```
+
+
+##HOME BASED SHOPPING TRIPS (HBS) 2019
+
+```{r HOME BASED SHOPPING TRIPS (HBS) 2019}
+HBS.2019p<- filter(final_dataset_2019, OVERALL_PURPOSE == "Shopping")
+unique(HBS.2019p$MAINMODE)
+```
+
+
+
+Reshaping the data (HBS) 2019
+```{r Reshaping the data (HBS) 2019}
+HBS.2019 <- select(HBS.2019p, 6,7,10,12,16:22)
+library(mlogit)
+HBS.2019<- mlogit.data(HBS.2019  , choice = "MAINMODE", shape = "wide")
+#view(HBS.2019)
+```
+
+Fitting the model using the mlogit package (HBS) 2019
+```{r Fitting the model using the mlogit package (HBS) 2019}
+HBS.2019.model<- mlogit(MAINMODE~ 1 | HHSIZE+HHVEH+TRAVTIME+N.Adults+N.LicenceHolders+N.Students+N.TerStudents+N.Workers+N.WhiteWorkers+N.BlueWorkers, data = HBS.2019, reflevel = "Car", method = "bfgs")
+summary(HBS.2019.model)
+```
+
+#Prediction for HBS 2019
+```{r Prediction for HBS 2019}
+HBS.predict2019<-predict(HBS.1718.model.test, newdata=HBS.2019, returnData = FALSE)
+
+
+
+HBS.predict2019<-data.frame(HBS.predict2019)
+HBS.b.car<- select(HBS.predict2019, 1)
+
+HBS.car<-sum(HBS.b.car, 1)
+HBS.car<-HBS.car/1220
+
+HBS.b.ActiveTransport<- select(HBS.predict2019, 2)
+HBS.Activetransport<-sum(HBS.b.ActiveTransport, 1)
+HBS.Activetransport<-HBS.Activetransport/1220
+
+HBS.b.Motorcycle<- select(HBS.predict2019, 3)
+HBS.Motorcycle<-sum(HBS.b.Motorcycle, 1)
+HBS.Motorcycle<-HBS.Motorcycle/1220
+
+
+
+HBS.b.PT<- select(HBS.predict2019, 4)
+HBS.PT<-sum(HBS.b.PT, 1)
+HBS.PT<-HBS.PT/1220
+
+HBS.b.Taxi<- select(HBS.predict2019, 5)
+HBS.Taxi<-sum(HBS.b.Taxi, 1)
+HBS.Taxi<-HBS.Taxi/1220
+
+HBS.b.Truck<- select(HBS.predict2019, 6)
+HBS.Truck<-sum(HBS.b.Truck, 1)
+HBS.Truck<-HBS.Truck/1220
+
+
+HBS.car
+HBS.Activetransport
+HBS.Motorcycle
+
+HBS.PT
+HBS.Taxi
+HBS.Truck
+
+```
+
+##BAR PLOTS FOR OBSERVED AND PREDICTED VALUES HBS 2019
+
+```{r BAR PLOTS HBS 2019}
+
+#creating a data frame for observed and predicted modeshare values of 2019 in order to visualise
+
+ValuesS<- c(0.9049180, 0.886322, 0.0647541, 0.07528843, 0.0057377, 0.00907519, 0.0204918, 0.01775375, 0.0016393, 0.008798262, 0.0024590, 0.007680376)
+
+
+
+tagsS<- c('Observed','Predicted', 'Observed','Predicted', 'Observed','Predicted', 'Observed','Predicted', 'Observed','Predicted', 'Observed','Predicted')
+
+modesS<- c("Car", "Car","Active transport","Active transport", "Motorcycle","Motorcycle", "Public transport", "Public transport", "Taxi", "Taxi","Truck","Truck")
+
+barHBS<- data.frame(ValuesS, tagsS, modesS)
+
+
+plot.HBS<- ggplot(barHBS,aes(x =modesS, y = ValuesS, fill= tagsS)) + 
+  geom_bar(stat = "identity", color = "Black",position = "dodge")+
+  theme_classic()+
+  scale_y_continuous(labels = scales::percent)+
+  labs(x = "Modes", fill="Observed/Predicted", y = "Mode share %")
+  
+
+plot.HBS
+```
+
+
+
+
+
+
+
+
+############################################*******************************###########################################
+
+
+
+
+##HOME BASED OTHER TRIPS (HBO) 2017-2018
+
+```{r HOME BASED OTHER TRIPS (HBO) 2017-2018}
+HBO<- filter(final_dataset.17.18, OVERALL_PURPOSE != "Shopping" & OVERALL_PURPOSE != "Education" & OVERALL_PURPOSE !=  "Direct Work Commute" & OVERALL_PURPOSE !=  "Work Related")
+unique(HBO$MAINMODE)
+```
+
+Splitting and training the dataset (HBO) 2017-2018
+```{r Splitting and training the dataset (HBO) 2017-2018}
+library(caTools)
+
+smp_size <- floor(0.70 * nrow(HBO))
+set.seed(123)
+train_ind.HBO <- sample(seq_len(nrow(HBO)), size = smp_size)
+
+train.1718.HBO <- HBO[train_ind.HBO, ]
+test.1718.HBO <- HBO[-train_ind.HBO, ]
+
+```
+Reshaping the data for train set (HBO) 2017-2018
+```{r Reshaping the data for train set (HBO) 2017-2018}
+HBO.1718.train <- select(train.1718.HBO, 6,7,10,12,16:22)
+library(mlogit)
+HBO.1718.train<- mlogit.data(HBO.1718.train  , choice = "MAINMODE", shape = "wide")
+#view(HBO.1718.train)
+```
+
+Fitting the model using the mlogit package for train set (HBS) 2017-2018
+```{r Fitting the model using the mlogit package for train set (HBS) 2017-2018}
+HBO.1718.model<- mlogit(MAINMODE~ 1 | HHSIZE+HHVEH+TRAVTIME+N.Adults+N.LicenceHolders+N.Students+N.TerStudents+N.Workers+N.WhiteWorkers+N.BlueWorkers, data = HBO.1718.train, reflevel = "Car", method = "bfgs")
+summary(HBO.1718.model)
+```
+
+Reshaping the data for test set (HBO) 2017-2018
+```{r Reshaping the data for test set (HBO) 2017-2018}
+HBO.1718.test <- select(test.1718.HBO, 6,7,10,12,16:22)
+library(mlogit)
+HBO.1718.test<- mlogit.data(HBO.1718.test  , choice = "MAINMODE", shape = "wide")
+#view(HBO.1718.test)
+```
+
+Fitting the model using the mlogit package for test set (HBO) 2017-2018
+```{r Fitting the model using the mlogit package for test set (HBO) 2017-2018}
+HBO.1718.model.test<- mlogit(MAINMODE~ 1 | HHSIZE+HHVEH+TRAVTIME+N.Adults+N.LicenceHolders+N.Students+N.TerStudents+N.Workers+N.WhiteWorkers+N.BlueWorkers, data = HBO.1718.test, reflevel = "Car", method = "bfgs")
+summary(HBO.1718.model.test)
+```
+
+#HOME BASED OTHER TRIPS (HBO) 2019
+
+```{r HOME BASED OTHER TRIPS (HBO) 2019}
+HBO.2019<- filter(final_dataset_2019, OVERALL_PURPOSE != "Shopping" & OVERALL_PURPOSE != "Education" & OVERALL_PURPOSE !=  "Direct Work Commute" & OVERALL_PURPOSE !=  "Work Related")
+
+```
+
+
+Reshaping the data for train set (HBO) 2019
+```{r Reshaping the data for train set (HBO) 2019}
+HBO.2019 <- select(HBO.2019, 6,7,10,12,16:22)
+library(mlogit)
+HBO.2019.rs<- mlogit.data(HBO.2019  , choice = "MAINMODE", shape = "wide")
+
+```
+
+Fitting the model using the mlogit package (HBO) 2019
+```{r Fitting the model using the mlogit package (HBO) 2019}
+HBO.2019.model<- mlogit(MAINMODE~ 1 | HHSIZE+HHVEH+TRAVTIME+N.Adults+N.LicenceHolders+N.Students+N.TerStudents+N.Workers+N.WhiteWorkers+N.BlueWorkers, data = HBO.2019.rs, reflevel = "Car", method = "bfgs")
+summary(HBO.2019.model)
+```
+
+Prediction for HOME BASED OTHER 2019
+
+```{r Prediction for HOME BASED OTHER 2019}
+
+HBO.predict2019<-predict(HBO.1718.model, newdata=HBO.2019.rs, returnData = FALSE)
+
+HBO.predict2019<-data.frame(HBO.predict2019)
+HBO.b.car<- select(HBO.predict2019, 1)
+
+HBO.car<-sum(HBO.b.car, 1)
+HBO.car<-HBO.car/4437
+
+HBO.b.ActiveTransport<- select(HBO.predict2019, 2)
+HBO.Activetransport<-sum(HBO.b.ActiveTransport, 1)
+HBO.Activetransport<-HBO.Activetransport/4437
+
+HBO.b.Motorcycle<- select(HBO.predict2019, 3)
+HBO.Motorcycle<-sum(HBO.b.Motorcycle, 1)
+HBO.Motorcycle<-HBO.Motorcycle/4437
+
+HBO.b.OtherBus<- select(HBO.predict2019, 4)
+HBO.OtherBus<-sum(HBO.b.OtherBus, 1)
+HBO.OtherBus<-HBO.OtherBus/4437
+
+HBO.b.PT<- select(HBO.predict2019, 5)
+HBO.PT<-sum(HBO.b.PT, 1)
+HBO.PT<-HBO.PT/4437
+
+HBO.b.Taxi<- select(HBO.predict2019, 6)
+HBO.Taxi<-sum(HBO.b.Taxi, 1)
+HBO.Taxi<-HBO.Taxi/4437
+
+HBO.b.Truck<- select(HBO.predict2019, 7)
+HBO.Truck<-sum(HBO.b.Truck, 1)
+HBO.Truck<-HBO.Truck/4437
+
+
+HBO.car
+HBO.Activetransport
+HBO.Motorcycle
+HBO.OtherBus
+HBO.PT
+HBO.Taxi
+HBO.Truck
+```
+
+##BAR PLOTS FOR OBSERVED AND PREDICTED VALUES HBO 2019
+
+```{r BAR PLOTS HBO 2019}
+#creating a data frame for observed and predicted modeshare values of 2019 in order to visualise
+
+Values<- c(0.8413342, 0.8327979, 0.1390579, 0.143293, 0.0031553, 0.002904458,  0.0027045, 0.003120339, 0.0099166, 0.01254947, 0.0015776, 0.003886597, 0.0022538, 0.003025853)
+
+tags<- c('Observed','Predicted', 'Observed','Predicted', 'Observed','Predicted', 'Observed','Predicted', 'Observed','Predicted', 'Observed','Predicted', 'Observed','Predicted')
+
+modes<- c("Car", "Car","Active transport","Active transport", "Motorcycle","Motorcycle", "Other bus", "Other bus","Public transport", "Public transport", "Taxi", "Taxi","Truck","Truck")
+
+barHBO<- data.frame(Values, tags, modes)
+
+
+plot.HBO<- ggplot(barHBO,aes(x =modes, y = Values, fill= tags)) + 
+  geom_bar(stat = "identity",color = "Black", position = "dodge")+
+  theme_classic()+
+  scale_y_continuous(labels = scales::percent)+
+  labs(x = "Modes", fill="Observed/Predicted", y = "Mode share %")
+#ggtitle("Comparison of obsereved and predicted values of mode share of 2019")
+
+plot.HBO
+
+```
+
+
+
+##Combing all bar plots for 5 different trip purposes into one
+```{r Combing all bar plots to one}
+library(ggpubr)
+figure <- ggarrange(plot.HBW, plot.HBB, plot.HBE, plot.HBS, plot.HBO,
+                    labels = c("HBW-W", "HBW-B", "HBE", "HBS","HBO"),
+                    
+                    ncol = 2, nrow = 3)
+
+annotate_figure(figure,
+               top = text_grob("Comaprison of observed and predicted values of mode shares 2019", color = "Black", face = "bold", size = 14))
+```
+
+
+##Comapring the mode share values of 2019 for 5 different trip purposes
+```{r BAR PLOTS 2019}
+
+#creating a table using the observed mode shares of 2019 for the 5 segments to plot the bar graph
+ModeShareM<- matrix(c(0.8395547, 0.8800600, 0.70056957, 0.9049180, 0.8413342, 0.0268500,0.0164918, 0.14727421, 0.0647541, 0.1390579,  0.0111329, 0.0179910, 0.00081367, 0.0057377, 0.0031553, 0.0026195,  0.0029985, 0.07892596, 0.00000000, 0.0027045, 0.1119843, 0.0299850, 0.07078926, 0.0204918, 0.0099166, 0.0045842, 0.0014993, 0.00162734, 0.0016393, 0.0015776, 0.0032744, 0.0509745, 0.0000000, 0.0024590, 0.0022538), ncol = 5, byrow = TRUE )
+colnames (ModeShareM)<- c("HBW-W", "HBW-B", "HBE", "HBS", "HBO")
+rownames (ModeShareM)<- c("Car", "Active transport","Motorcycle", "Other bus", "Public transport",  "Taxi","Truck")
+ModeShareM<- as.table(ModeShareM)
+
+ModeShareM<- data.frame(ModeShareM)
+
+MS_bar<- ggplot(ModeShareM, aes(fill=Var1, y=Freq, x=Var2)) + 
+    geom_bar(position="stack", stat="identity", color = "Black")+
+  theme_classic()+
+  scale_y_continuous(labels = scales::percent)+
+  labs(x = "Trip Purposes", fill="Modes", y = "Mode share %")+
+  ggtitle("Comparison of observed mode shares of 2019 for different trip purposes")
+
+MS_bar
+
+```
